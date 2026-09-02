@@ -418,7 +418,7 @@ async function onStartClick(){
 
     if(!isAdminMode && email !== ADMIN_EMAIL){
       let last = null;
-      attempts.forEach(a=>{ if(a.email === email && a.callsign.toLowerCase() === callsign.toLowerCase() && (!last || a.ts > last.ts)) last = a; });
+      attempts.forEach(a=>{ if(a.email === email && (!last || a.ts > last.ts)) last = a; });
       if(last){
         renderAlreadyTaken(email, callsign, last);
         return;
