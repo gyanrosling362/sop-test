@@ -139,6 +139,7 @@ const ENTRY_GENERAL    = "entry.1570683198";
 const ENTRY_PROFILE    = "entry.1400121318";
 const ENTRY_SITUATIONAL= "entry.711304735";
 const ENTRY_RESULT     = "entry.2129666759";
+const ENTRY_DETAILS    = "entry.1331848510";
 const CSV_URL = "https://docs.google.com/spreadsheets/d/1juTXxepz5nHieCcJ-7uxQnr3SA1Q1sVM7vCYAHQqwBM/gviz/tq?tqx=out:csv&gid=0";
 
 /* ============================================================
@@ -525,6 +526,15 @@ async function finishQuiz(){
   const passedYellow = generalErrors <= PASS_THRESHOLD_GENERAL_ERR && profileErrors <= PASS_THRESHOLD_PROFILE_ERR;
   const result = passedGreen ? "СКЛАВ" : (passedYellow ? "СКЛАВ ІЗ ЗАУВАЖЕННЯМИ" : "НЕ СКЛАВ");
 
+  const detailsLines = state.quiz.map((q,i)=>{
+    const chosenIdx = state.answers[i];
+    const chosenText = (chosenIdx === null || chosenIdx === undefined) ? "(не відповів)" : q.options[chosenIdx];
+    const correctText = q.options[q.correctIndex];
+    const isRight = chosenIdx === q.correctIndex;
+    const sectionLabel = q.section === "general" ? "Загальна" : "Профільна";
+    return `${i+1}. [${sectionLabel}] ${q.text}\n   Обрано: ${chosenText}\n   Правильно: ${correctText}\n   Результат: ${isRight ? "вірно" : "невірно"}`;
+  }).join("\n\n");
+
   const payload = {
     [ENTRY_EMAIL]: state.email,
     [ENTRY_CALLSIGN]: state.callsign,
@@ -532,7 +542,8 @@ async function finishQuiz(){
     [ENTRY_GENERAL]: generalCorrect + "/" + generalTotal,
     [ENTRY_PROFILE]: profileCorrect + "/" + profileTotal,
     [ENTRY_SITUATIONAL]: situationalCorrect + "/" + situationalTotal,
-    [ENTRY_RESULT]: result
+    [ENTRY_RESULT]: result,
+    [ENTRY_DETAILS]: detailsLines
   };
 
   card.innerHTML = `
