@@ -123,10 +123,11 @@ const GENERAL_COUNT = 25;
 const PROFILE_COUNT = 20;
 const TIME_LIMIT_SECONDS = 30 * 60;
 const PAGE_PASSWORD = "87654321"; // <-- зміни на свій код доступу
-const ADMIN_PASSWORD = "14881488"; // <-- окремий код для адмін-режиму (тест без обмежень)
+const ADMIN_PASSWORD = "14881488"; // <-- окремий код для адмін-панелі
 const ADMIN_EMAIL = "admin@gmail.com";
 const ADMIN_CALLSIGN = "admin";
-const COOLDOWN_MS = 24 * 60 * 60 * 1000;
+const DEADLINE_MARKER_EMAIL = "__deadline_config__";
+const DEVICE_KEY = "sopquiz_device_completed";
 const PASS_THRESHOLD_GENERAL_ERR = 3;
 const PASS_THRESHOLD_PROFILE_ERR = 3;
 const PROGRESS_KEY = "sopquiz_v2_progress";
@@ -176,48 +177,24 @@ function fmtRemaining(ms){
   const m = Math.floor((ms%3600000)/60000);
   return h+" год " + m + " хв";
 }
+function fmtDate(ts){
+  if(!ts) return "—";
+  const d = new Date(ts);
+  return d.toLocaleString("uk-UA");
+}
 
 function submitToGoogleForm(payload){
-  // Відправляємо ДВОМА способами одночасно (для надійності):
-  // 1) fetch без iframe — краще працює у вбудованих браузерах месенджерів (WhatsApp, Telegram тощо)
-  // 2) прихований iframe — запасний варіант для середовищ, де fetch на інший домен обмежено
+  // Одна, найнадійніша відправка: fetch без iframe.
+  // Iframe-метод прибрано — fetch стабільніше й простіше, дублювання рядків більше не потрібне.
   const params = new URLSearchParams();
   Object.keys(payload).forEach(name => params.append(name, payload[name]));
 
-  const fetchAttempt = fetch(FORM_ACTION_URL, {
+  return fetch(FORM_ACTION_URL, {
     method: "POST",
     mode: "no-cors",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: params.toString()
-  }).catch(()=>{});
-
-  const iframeAttempt = new Promise((resolve)=>{
-    const iframeName = "hidden_submit_frame";
-    let iframe = document.getElementById(iframeName);
-    if(!iframe){
-      iframe = document.createElement("iframe");
-      iframe.name = iframeName;
-      iframe.id = iframeName;
-      iframe.style.display = "none";
-      document.body.appendChild(iframe);
-    }
-    const form = document.createElement("form");
-    form.action = FORM_ACTION_URL;
-    form.method = "POST";
-    form.target = iframeName;
-    Object.keys(payload).forEach(name=>{
-      const input = document.createElement("input");
-      input.type = "hidden";
-      input.name = name;
-      input.value = payload[name];
-      form.appendChild(input);
-    });
-    document.body.appendChild(form);
-    try{ form.submit(); }catch(e){}
-    setTimeout(()=>{ form.remove(); resolve(); }, 900);
   });
-
-  return Promise.all([fetchAttempt, iframeAttempt]);
 }
 
 function parseCSV(text){
@@ -287,6 +264,17 @@ async function fetchAttempts(){
   return out;
 }
 
+function findDeadline(attempts){
+  let last = null;
+  attempts.forEach(a=>{
+    if(a.email === DEADLINE_MARKER_EMAIL && (!last || a.ts > last.ts)) last = a;
+  });
+  if(!last || !last.result) return null;
+  const d = new Date(last.result);
+  if(isNaN(d.getTime())) return null;
+  return d.getTime();
+}
+
 function saveProgress(){
   try{
     localStorage.setItem(PROGRESS_KEY, JSON.stringify({
@@ -350,8 +338,8 @@ function resultBadgeClass(result){
   return "mid";
 }
 
-/* --- екран "вже пройдено": показує останній результат --- */
-function renderCooldown(email, callsign, remainingMs, last){
+/* --- екран "вже пройдено": показує останній результат, блокування ПОСТІЙНЕ --- */
+function renderAlreadyTaken(email, callsign, last){
   timerEl.classList.add("hidden");
   const showResult = isAdminMode && last;
   const badgeCls = last ? resultBadgeClass(last.result) : "mid";
@@ -367,10 +355,28 @@ function renderCooldown(email, callsign, remainingMs, last){
     ` : `<p class="sub" style="text-align:center">Відповіді прийнято. Результат підлягає перевірці відповідальною особою.</p>`}
     <div class="meta-line" style="text-align:center">Пошта: <b>${email}</b></div>
     <div class="meta-line" style="text-align:center">Позивний: <b>${callsign}</b></div>
-    <p class="sub" style="margin-top:16px;text-align:center">Наступна спроба буде доступна через <b style="color:var(--text-primary)">${fmtRemaining(remainingMs)}</b>.</p>
+    <p class="sub" style="margin-top:16px;text-align:center">На цю пошту й позивний уже зараховано одну спробу. Повторне проходження з цими самими даними неможливе.</p>
     <button class="btn-ghost" id="backBtn">← Ввести інші дані</button>
   `;
   document.getElementById("backBtn").onclick = ()=> renderStart();
+}
+
+/* --- екран "тест закрито": дедлайн уже минув --- */
+function renderClosed(deadlineTs){
+  timerEl.classList.add("hidden");
+  card.innerHTML = `
+    <h1 style="text-align:center">Тест закрито</h1>
+    <p class="sub" style="text-align:center">Прийом відповідей завершено ${fmtDate(deadlineTs)}. Зверніться до відповідальної особи, якщо вважаєте це помилкою.</p>
+  `;
+}
+
+/* --- екран "цей пристрій вже використовувався" --- */
+function renderDeviceBlocked(){
+  timerEl.classList.add("hidden");
+  card.innerHTML = `
+    <h1 style="text-align:center">Тест уже пройдено з цього пристрою</h1>
+    <p class="sub" style="text-align:center">На цьому браузері/пристрої тест уже було пройдено раніше. Повторне проходження з нього неможливе, незалежно від пошти й позивного.</p>
+  `;
 }
 
 async function onStartClick(){
@@ -380,6 +386,14 @@ async function onStartClick(){
   if(!email || !email.includes("@")){ renderStart("Вкажи коректну пошту."); return; }
   if(!callsign){ renderStart("Вкажи позивний."); return; }
   if(!posada){ renderStart("Обери посаду зі списку."); return; }
+
+  // Перевірка "1 спроба з цього пристрою" — лише для звичайних (не адмінських) спроб
+  if(!isAdminMode){
+    let deviceUsed = false;
+    try{ deviceUsed = localStorage.getItem(DEVICE_KEY) === "1"; }catch(e){}
+    if(deviceUsed){ renderDeviceBlocked(); return; }
+  }
+
   state.email = email;
   state.callsign = callsign;
   state.posada = posada;
@@ -389,20 +403,27 @@ async function onStartClick(){
   startBtn.textContent = "Перевірка…";
 
   try{
+    const attempts = await fetchAttempts();
+
+    if(!isAdminMode){
+      // Перевірка дедлайну
+      const deadlineTs = findDeadline(attempts);
+      if(deadlineTs && Date.now() > deadlineTs){
+        renderClosed(deadlineTs);
+        return;
+      }
+    }
+
     if(!isAdminMode && email !== ADMIN_EMAIL){
-      const attempts = await fetchAttempts();
       let last = null;
-      attempts.forEach(a=>{ if(a.email === email && (!last || a.ts > last.ts)) last = a; });
-      if(last && last.ts > 0){
-        const elapsed = Date.now() - last.ts;
-        if(elapsed < COOLDOWN_MS){
-          renderCooldown(email, callsign, COOLDOWN_MS - elapsed, last);
-          return;
-        }
+      attempts.forEach(a=>{ if(a.email === email && a.callsign.toLowerCase() === callsign.toLowerCase() && (!last || a.ts > last.ts)) last = a; });
+      if(last){
+        renderAlreadyTaken(email, callsign, last);
+        return;
       }
     }
   }catch(e){
-    renderStart("Не вдалося перевірити кулдаун (проблема з мережею чи посиланням на таблицю). Спробуй ще раз за хвилину.");
+    renderStart("Не вдалося перевірити доступність тесту (проблема з мережею чи посиланням на таблицю). Спробуй ще раз за хвилину.");
     return;
   }
 
@@ -532,8 +553,9 @@ async function finishQuiz(){
     const correctText = q.options[q.correctIndex];
     const isRight = chosenIdx === q.correctIndex;
     const sectionLabel = q.section === "general" ? "Загальна" : "Профільна";
-    return `${i+1}. [${sectionLabel}] ${q.text}\nОбрано: ${chosenText}\nПравильно: ${correctText}\nРезультат: ${isRight ? "вірно" : "невірно"}`;
-  }).join("\n\n");
+    const mark = isRight ? "✔ ВІРНО" : "✘ НЕВІРНО";
+    return `【${i+1}. ${sectionLabel}】 ${q.text}  ▸ Обрано: ${chosenText}  ▸ Правильно: ${correctText}  ▸ ${mark}`;
+  }).join("   ┃   ");
 
   const payload = {
     [ENTRY_EMAIL]: state.email,
@@ -555,6 +577,10 @@ async function finishQuiz(){
   try{
     await submitToGoogleForm(payload);
   }catch(e){ /* навіть якщо не вдалось — все одно показуємо результат */ }
+
+  if(!isAdminMode){
+    try{ localStorage.setItem(DEVICE_KEY, "1"); }catch(e){}
+  }
 
   const badgeCls = resultBadgeClass(result);
   card.innerHTML = `
@@ -635,9 +661,79 @@ function startApp(){
       startTimer();
       renderQuestion();
     }
+  } else if(isAdminMode){
+    renderAdminPanel();
   } else {
     renderStart();
   }
+}
+
+/* ============================================================
+   АДМІН-ПАНЕЛЬ: встановлення дедлайну проходження тесту
+   ============================================================ */
+function toDatetimeLocal(ts){
+  const d = new Date(ts);
+  const pad = n => String(n).padStart(2, "0");
+  return d.getFullYear() + "-" + pad(d.getMonth()+1) + "-" + pad(d.getDate()) + "T" + pad(d.getHours()) + ":" + pad(d.getMinutes());
+}
+
+async function saveDeadline(value){
+  const payload = {
+    [ENTRY_EMAIL]: DEADLINE_MARKER_EMAIL,
+    [ENTRY_CALLSIGN]: "admin",
+    [ENTRY_POSADA]: "-",
+    [ENTRY_GENERAL]: "-",
+    [ENTRY_PROFILE]: "-",
+    [ENTRY_SITUATIONAL]: "-",
+    [ENTRY_RESULT]: value,
+    [ENTRY_DETAILS]: "-"
+  };
+  try{ await submitToGoogleForm(payload); }catch(e){}
+}
+
+async function renderAdminPanel(errorMsg, savedMsg){
+  timerEl.classList.add("hidden");
+  card.innerHTML = `
+    <h1 style="text-align:center">Адмін-панель</h1>
+    <p class="sub" style="text-align:center">Завантаження поточного дедлайну…</p>
+  `;
+  let deadlineTs = null;
+  try{
+    const attempts = await fetchAttempts();
+    deadlineTs = findDeadline(attempts);
+  }catch(e){}
+
+  const currentText = deadlineTs ? fmtDate(deadlineTs) : "не встановлено (тест завжди відкритий)";
+  const inputVal = deadlineTs ? toDatetimeLocal(deadlineTs) : "";
+
+  card.innerHTML = `
+    <h1 style="text-align:center">Адмін-панель</h1>
+    <p class="sub" style="text-align:center">Поточний дедлайн: <b style="color:var(--text-primary)">${currentText}</b></p>
+    <label for="deadlineInput">Новий дедлайн (дата й час)</label>
+    <input type="datetime-local" id="deadlineInput" value="${inputVal}"/>
+    ${errorMsg ? `<div class="error">${errorMsg}</div>` : ""}
+    ${savedMsg ? `<p class="sub" style="color:var(--status-good-text);text-align:center">${savedMsg}</p>` : ""}
+    <button class="btn-primary" id="saveDeadlineBtn">Зберегти дедлайн</button>
+    <button class="btn-ghost" id="clearDeadlineBtn" style="width:100%;margin-top:10px">Прибрати дедлайн (тест завжди відкритий)</button>
+    <button class="btn-ghost" id="takeAsAdminBtn" style="width:100%;margin-top:10px">Пройти тест як адмін</button>
+  `;
+  document.getElementById("saveDeadlineBtn").onclick = async ()=>{
+    const val = document.getElementById("deadlineInput").value;
+    if(!val){ renderAdminPanel("Обери дату й час."); return; }
+    const ts = new Date(val).getTime();
+    if(isNaN(ts)){ renderAdminPanel("Некоректна дата."); return; }
+    const btn = document.getElementById("saveDeadlineBtn");
+    btn.disabled = true; btn.textContent = "Зберігаємо…";
+    await saveDeadline(new Date(val).toISOString());
+    renderAdminPanel(null, "Дедлайн збережено.");
+  };
+  document.getElementById("clearDeadlineBtn").onclick = async ()=>{
+    const btn = document.getElementById("clearDeadlineBtn");
+    btn.disabled = true; btn.textContent = "Зберігаємо…";
+    await saveDeadline("NONE");
+    renderAdminPanel(null, "Дедлайн знято, тест завжди відкритий.");
+  };
+  document.getElementById("takeAsAdminBtn").onclick = ()=> renderStart();
 }
 
 let isAdminMode = false;
