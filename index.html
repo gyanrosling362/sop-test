@@ -532,8 +532,8 @@ async function finishQuiz(){
     const correctText = q.options[q.correctIndex];
     const isRight = chosenIdx === q.correctIndex;
     const sectionLabel = q.section === "general" ? "Загальна" : "Профільна";
-    return `${i+1}. [${sectionLabel}] ${q.text}\n   Обрано: ${chosenText}\n   Правильно: ${correctText}\n   Результат: ${isRight ? "вірно" : "невірно"}`;
-  }).join("\n\n");
+    return `${i+1}) [${sectionLabel}] ${q.text} — Обрано: ${chosenText} — Правильно: ${correctText} — ${isRight ? "вірно" : "невірно"}`;
+  }).join("  •  ");
 
   const payload = {
     [ENTRY_EMAIL]: state.email,
