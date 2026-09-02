@@ -127,7 +127,9 @@ const PAGE_PASSWORD = "87654321"; // <-- зміни на свій код дос�
 const ADMIN_PASSWORD = "14881488"; // <-- окремий код для адмін-панелі
 const ADMIN_EMAIL = "admin@gmail.com";
 const ADMIN_CALLSIGN = "admin";
-const DEADLINE_MARKER_EMAIL = "__deadline_config__";
+const DEADLINE_FORM_ACTION_URL = "https://docs.google.com/forms/d/e/1FAIpQLSdiwQ1Dbhycgq5CLFkolbazycnxXG194__z5pzgNj9Z7JuWiA/formResponse";
+const ENTRY_DEADLINE = "entry.1751132396";
+const DEADLINE_CSV_URL = "https://docs.google.com/spreadsheets/d/1juTXxepz5nHieCcJ-7uxQnr3SA1Q1sVM7vCYAHQqwBM/gviz/tq?tqx=out:csv&gid=2060007615";
 const DEVICE_KEY = "sopquiz_device_completed";
 const PASS_THRESHOLD_GENERAL_ERR = 3;
 const PASS_THRESHOLD_PROFILE_ERR = 3;
@@ -265,13 +267,26 @@ async function fetchAttempts(){
   return out;
 }
 
-function findDeadline(attempts){
+async function fetchDeadline(){
+  const controller = new AbortController();
+  const timeoutId = setTimeout(()=> controller.abort(), 8000);
+  let res;
+  try{
+    res = await fetch(DEADLINE_CSV_URL + "&_ts=" + Date.now(), { cache: "no-store", signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+  const text = await res.text();
+  const rows = parseCSV(text);
   let last = null;
-  attempts.forEach(a=>{
-    if(a.email === DEADLINE_MARKER_EMAIL && (!last || a.ts > last.ts)) last = a;
-  });
-  if(!last || !last.result) return null;
-  const d = new Date(last.result);
+  for(let i=1;i<rows.length;i++){
+    const r = rows[i];
+    if(!r || r.length < 2 || !r[1]) continue;
+    const ts = parseTimestamp(r[0]);
+    if(!last || ts > last.ts) last = { ts, value: r[1].trim() };
+  }
+  if(!last) return null;
+  const d = new Date(last.value);
   if(isNaN(d.getTime())) return null;
   return d.getTime();
 }
@@ -404,11 +419,13 @@ async function onStartClick(){
   startBtn.textContent = "Перевірка…";
 
   try{
-    const attempts = await fetchAttempts();
+    const [attempts, deadlineTs] = await Promise.all([
+      fetchAttempts(),
+      isAdminMode ? Promise.resolve(null) : fetchDeadline()
+    ]);
 
     if(!isAdminMode){
       // Перевірка дедлайну
-      const deadlineTs = findDeadline(attempts);
       if(deadlineTs && Date.now() > deadlineTs){
         renderClosed(deadlineTs);
         return;
@@ -679,17 +696,16 @@ function toDatetimeLocal(ts){
 }
 
 async function saveDeadline(value){
-  const payload = {
-    [ENTRY_EMAIL]: DEADLINE_MARKER_EMAIL,
-    [ENTRY_CALLSIGN]: "admin",
-    [ENTRY_POSADA]: "-",
-    [ENTRY_GENERAL]: "-",
-    [ENTRY_PROFILE]: "-",
-    [ENTRY_SITUATIONAL]: "-",
-    [ENTRY_RESULT]: value,
-    [ENTRY_DETAILS]: "-"
-  };
-  try{ await submitToGoogleForm(payload); }catch(e){}
+  const params = new URLSearchParams();
+  params.append(ENTRY_DEADLINE, value);
+  try{
+    await fetch(DEADLINE_FORM_ACTION_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: params.toString()
+    });
+  }catch(e){}
 }
 
 async function renderAdminPanel(errorMsg, savedMsg){
@@ -700,8 +716,7 @@ async function renderAdminPanel(errorMsg, savedMsg){
   `;
   let deadlineTs = null;
   try{
-    const attempts = await fetchAttempts();
-    deadlineTs = findDeadline(attempts);
+    deadlineTs = await fetchDeadline();
   }catch(e){}
 
   const currentText = deadlineTs ? fmtDate(deadlineTs) : "не встановлено (тест завжди відкритий)";
