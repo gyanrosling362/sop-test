@@ -762,17 +762,18 @@ function resultBadgeClass(result){
 /* --- екран "вже пройдено": показує останній результат --- */
 function renderCooldown(email, callsign, remainingMs, last){
   timerEl.classList.add("hidden");
+  const showResult = isAdminMode && last;
   const badgeCls = last ? resultBadgeClass(last.result) : "mid";
   card.innerHTML = `
     <h1 style="text-align:center">Тест уже пройдено</h1>
-    ${last ? `
+    ${showResult ? `
       <div class="result-badge ${badgeCls}">${last.result || "—"}</div>
       <div class="result-breakdown">
         <div><div class="num">${last.general || "—"}</div><div class="lbl">Загальний</div></div>
         <div><div class="num">${last.profile || "—"}</div><div class="lbl">Профільний</div></div>
         <div><div class="num">${last.situational || "—"}</div><div class="lbl">Ситуаційні</div></div>
       </div>
-    ` : ''}
+    ` : `<p class="sub" style="text-align:center">Відповіді прийнято. Результат підлягає перевірці відповідальною особою.</p>`}
     <div class="meta-line" style="text-align:center">Пошта: <b>${email}</b></div>
     <div class="meta-line" style="text-align:center">Позивний: <b>${callsign}</b></div>
     <p class="sub" style="margin-top:16px;text-align:center">Наступна спроба буде доступна через <b style="color:var(--text-primary)">${fmtRemaining(remainingMs)}</b>.</p>
@@ -954,20 +955,17 @@ async function finishQuiz(){
     await submitToGoogleForm(payload);
   }catch(e){ /* навіть якщо не вдалось — все одно показуємо результат */ }
 
-  // Автоматичні "сліпі" повторні спроби у фоні — підстраховка на випадок,
-  // якщо перша спроба тихо не пройшла (наприклад, браузер месенджера)
-  setTimeout(()=>{ submitToGoogleForm(payload).catch(()=>{}); }, 3000);
-  setTimeout(()=>{ submitToGoogleForm(payload).catch(()=>{}); }, 10000);
-
   const badgeCls = resultBadgeClass(result);
   card.innerHTML = `
-    <h1 style="text-align:center">Результат</h1>
-    <div class="result-badge ${badgeCls}">${result}</div>
-    <div class="result-breakdown">
-      <div><div class="num">${generalCorrect}/${generalTotal}</div><div class="lbl">Загальний</div></div>
-      <div><div class="num">${profileCorrect}/${profileTotal}</div><div class="lbl">Профільний</div></div>
-      <div><div class="num">${situationalCorrect}/${situationalTotal}</div><div class="lbl">Ситуаційні</div></div>
-    </div>
+    <h1 style="text-align:center">${isAdminMode ? "Результат" : "Відповіді прийнято"}</h1>
+    ${isAdminMode ? `
+      <div class="result-badge ${badgeCls}">${result}</div>
+      <div class="result-breakdown">
+        <div><div class="num">${generalCorrect}/${generalTotal}</div><div class="lbl">Загальний</div></div>
+        <div><div class="num">${profileCorrect}/${profileTotal}</div><div class="lbl">Профільний</div></div>
+        <div><div class="num">${situationalCorrect}/${situationalTotal}</div><div class="lbl">Ситуаційні</div></div>
+      </div>
+    ` : `<p class="sub" style="text-align:center">Результат підлягає перевірці відповідальною особою.</p>`}
     <div class="meta-line" style="text-align:center">Пошта: <b>${state.email}</b></div>
     <div class="meta-line" style="text-align:center">Позивний: <b>${state.callsign}</b></div>
     <div class="meta-line" style="text-align:center">Посада: <b>${state.posada}</b></div>
