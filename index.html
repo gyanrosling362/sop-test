@@ -562,7 +562,7 @@ async function finishQuiz(){
 
   const generalErrors = generalTotal - generalCorrect;
   const profileErrors = profileTotal - profileCorrect;
-  const passedGreen = generalErrors <= 1 && profileErrors <= 1;
+  const passedGreen = generalErrors === 0 && profileErrors === 0;
   const passedYellow = generalErrors <= PASS_THRESHOLD_GENERAL_ERR && profileErrors <= PASS_THRESHOLD_PROFILE_ERR;
   const result = passedGreen ? "СКЛАВ" : (passedYellow ? "СКЛАВ ІЗ ЗАУВАЖЕННЯМИ" : "НЕ СКЛАВ");
 
