@@ -365,6 +365,7 @@ function renderStart(errorMsg){
   const options = ROLE_NAMES.map(r => `<option value="${r}">${r}</option>`).join("");
 
   if(isAdminMode){
+    resetViewportForTransition();
     card.innerHTML = `
       <div class="meta-line" style="text-align:center;color:var(--accent);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:14px">Адмін-режим</div>
       <h1>Тест зі СОП «Управління боєм»</h1>
@@ -388,6 +389,7 @@ function renderStart(errorMsg){
   }
 
   if(!state.email){
+    resetViewportForTransition();
     card.innerHTML = `
       <h1>Тест зі СОП «Управління боєм»</h1>
       <p class="sub">${GENERAL_COUNT} загальних + ${PROFILE_COUNT} профільних питань (за посадою), випадково з великого банку. Час на тест — ${Math.round(TIME_LIMIT_SECONDS/60)} хв. Відповідь не можна змінити після переходу далі.</p>
@@ -402,6 +404,7 @@ function renderStart(errorMsg){
     return;
   }
 
+  resetViewportForTransition();
   card.innerHTML = `
     <h1>Тест зі СОП «Управління боєм»</h1>
     <p class="sub">${GENERAL_COUNT} загальних + ${PROFILE_COUNT} профільних питань (за посадою), випадково з великого банку. Час на тест — ${Math.round(TIME_LIMIT_SECONDS/60)} хв. Відповідь не можна змінити після переходу далі.</p>
@@ -487,6 +490,7 @@ function resultBadgeClass(result){
 /* --- екран "вже пройдено": показує останній результат, блокування ПОСТІЙНЕ --- */
 function renderAlreadyTaken(email, callsign, last){
   timerEl.classList.add("hidden");
+  resetViewportForTransition();
   card.innerHTML = `
     <h1 style="text-align:center">Тест уже пройдено</h1>
   `;
@@ -495,6 +499,7 @@ function renderAlreadyTaken(email, callsign, last){
 /* --- екран "тест закрито": дедлайн уже минув --- */
 function renderClosed(deadlineTs){
   timerEl.classList.add("hidden");
+  resetViewportForTransition();
   card.innerHTML = `
     <h1 style="text-align:center">Тест закрито</h1>
     <p class="sub" style="text-align:center">Прийом відповідей завершено ${fmtDate(deadlineTs)}. Зверніться до відповідальної особи, якщо вважаєте це помилкою.</p>
@@ -601,6 +606,7 @@ function renderQuestion(){
   const q = state.quiz[state.current];
   const isLast = state.current === state.quiz.length - 1;
   const sectionLabel = q.section === "general" ? "Загальна частина" : "Профільна частина — " + state.posada;
+  resetViewportForTransition();
   card.innerHTML = `
     <div class="progress">${sectionLabel} · ПИТАННЯ ${state.current+1} / ${state.quiz.length}</div>
     <div class="qtext">${q.text}</div>
@@ -685,6 +691,7 @@ async function finishQuiz(){
     [ENTRY_DETAILS]: detailsLines
   };
 
+  resetViewportForTransition();
   card.innerHTML = `
     <div class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M5 12l5 5L20 7"/></svg></div>
     <h1>Тест завершено</h1>
@@ -696,6 +703,7 @@ async function finishQuiz(){
   }catch(e){ /* навіть якщо не вдалось — все одно показуємо результат */ }
 
   const badgeCls = resultBadgeClass(result);
+  resetViewportForTransition();
   card.innerHTML = `
     <h1 style="text-align:center">${isAdminMode ? "Результат" : "Відповіді прийнято"}</h1>
     ${isAdminMode ? `
@@ -722,6 +730,7 @@ async function finishQuiz(){
    ============================================================ */
 function renderPasswordGate(errorMsg){
   timerEl.classList.add("hidden");
+  resetViewportForTransition();
   card.innerHTML = `
     <div style="text-align:center">
       <div class="icon-circle" style="margin-left:auto;margin-right:auto">
@@ -806,6 +815,7 @@ async function saveDeadline(value){
 
 async function renderAdminPanel(errorMsg, savedMsg){
   timerEl.classList.add("hidden");
+  resetViewportForTransition();
   card.innerHTML = `
     <h1 style="text-align:center">Адмін-панель</h1>
     <p class="sub" style="text-align:center">Завантаження поточного дедлайну…</p>
@@ -818,6 +828,7 @@ async function renderAdminPanel(errorMsg, savedMsg){
   const currentText = deadlineTs ? fmtDate(deadlineTs) : "не встановлено (тест завжди відкритий)";
   const inputVal = deadlineTs ? toDatetimeLocal(deadlineTs) : "";
 
+  resetViewportForTransition();
   card.innerHTML = `
     <h1 style="text-align:center">Адмін-панель</h1>
     <p class="sub" style="text-align:center">Поточний дедлайн: <b style="color:var(--text-primary)">${currentText}</b></p>
