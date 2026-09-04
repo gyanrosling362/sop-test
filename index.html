@@ -39,11 +39,12 @@
     padding: 0 24px;
     min-height: 100vh;
   }
-  .app{ width:100%; max-width: 640px; padding-bottom: 24px; }
+  .app{ width:100%; max-width: 640px; padding-bottom: 24px; padding-top: 78px; }
   .topbar{
     display:flex; align-items:baseline; justify-content:space-between;
-    padding: 24px 0 14px; margin-bottom: 20px; border-bottom: 3px solid var(--border-color);
-    position: sticky; top: 0; z-index: 20;
+    padding: 24px 24px 14px; border-bottom: 3px solid var(--border-color);
+    position: fixed; top: 0; left: 0; right: 0; z-index: 30;
+    max-width: 640px; margin: 0 auto;
     background: var(--page-bg);
   }
   .topbar .title{
@@ -110,7 +111,8 @@
   .hidden{ display:none; }
   @media (max-width: 390px){
     body{ padding: 0 14px; }
-    .topbar{ padding: 14px 0 10px; margin-bottom: 12px; }
+    .app{ padding-top: 58px; }
+    .topbar{ padding: 14px 14px 10px; }
     .topbar .title{ font-size: 1.05rem; }
     .timer{ font-size: 18px; }
     .card{ padding: 16px; }
