@@ -158,7 +158,6 @@ const ADMIN_CALLSIGN = "admin";
 const DEADLINE_FORM_ACTION_URL = "https://docs.google.com/forms/d/e/1FAIpQLSdiwQ1Dbhycgq5CLFkolbazycnxXG194__z5pzgNj9Z7JuWiA/formResponse";
 const ENTRY_DEADLINE = "entry.1751132396";
 const DEADLINE_CSV_URL = "https://docs.google.com/spreadsheets/d/1juTXxepz5nHieCcJ-7uxQnr3SA1Q1sVM7vCYAHQqwBM/gviz/tq?tqx=out:csv&gid=2060007615";
-const DEVICE_KEY = "sopquiz_device_completed";
 const PASS_THRESHOLD_GENERAL_ERR = 3;
 const PASS_THRESHOLD_PROFILE_ERR = 3;
 const PROGRESS_KEY = "sopquiz_v2_progress";
@@ -508,14 +507,6 @@ function renderClosed(deadlineTs){
   `;
 }
 
-/* --- екран "цей пристрій вже використовувався" --- */
-function renderDeviceBlocked(){
-  timerEl.classList.add("hidden");
-  card.innerHTML = `
-    <h1 style="text-align:center">Тест уже пройдено</h1>
-  `;
-}
-
 async function onStartClick(){
   const email = isAdminMode ? ADMIN_EMAIL : state.email;
   const callsign = document.getElementById("callsign").value.trim();
@@ -523,13 +514,6 @@ async function onStartClick(){
   if(!email || !email.includes("@")){ renderStart("Спочатку увійди через Google."); return; }
   if(!callsign){ renderStart("Вкажи позивний."); return; }
   if(!posada){ renderStart("Обери посаду зі списку."); return; }
-
-  // Перевірка "1 спроба з цього пристрою" — лише для звичайних (не адмінських) спроб
-  if(!isAdminMode){
-    let deviceUsed = false;
-    try{ deviceUsed = localStorage.getItem(DEVICE_KEY) === "1"; }catch(e){}
-    if(deviceUsed){ renderDeviceBlocked(); return; }
-  }
 
   state.email = email;
   state.callsign = callsign;
@@ -715,10 +699,6 @@ async function finishQuiz(){
   try{
     await submitToGoogleForm(payload);
   }catch(e){ /* навіть якщо не вдалось — все одно показуємо результат */ }
-
-  if(!isAdminMode){
-    try{ localStorage.setItem(DEVICE_KEY, "1"); }catch(e){}
-  }
 
   const badgeCls = resultBadgeClass(result);
   card.innerHTML = `
