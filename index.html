@@ -27,7 +27,7 @@
     --input-text: #f2ede1;
   }
   * { box-sizing: border-box; }
-  html, body { height: 100%; overflow-x: hidden; }
+  html, body { height: 100%; }
   body{
     margin:0;
     background: var(--page-bg);
@@ -38,13 +38,13 @@
     justify-content:center;
     padding: 0 24px;
     min-height: 100vh;
+    overflow-x: hidden;
   }
-  .app{ width:100%; max-width: 640px; padding-bottom: 24px; padding-top: var(--topbar-h, 78px); }
+  .app{ width:100%; max-width: 640px; padding-bottom: 24px; }
   .topbar{
     display:flex; align-items:baseline; justify-content:space-between;
-    padding: 24px 24px 14px; border-bottom: 3px solid var(--border-color);
-    position: fixed; top: 0; left: 0; right: 0; z-index: 30;
-    max-width: 640px; margin: 0 auto;
+    padding: 24px 0 14px; margin-bottom: 20px; border-bottom: 3px solid var(--border-color);
+    position: sticky; top: 0; z-index: 30;
     background: var(--page-bg);
   }
   .topbar .title{
@@ -111,8 +111,7 @@
   .hidden{ display:none; }
   @media (max-width: 390px){
     body{ padding: 0 14px; }
-    .app{ padding-top: var(--topbar-h, 58px); }
-    .topbar{ padding: 14px 14px 10px; }
+    .topbar{ padding: 14px 0 10px; margin-bottom: 12px; }
     .topbar .title{ font-size: 1.05rem; }
     .timer{ font-size: 18px; }
     .card{ padding: 16px; }
@@ -347,32 +346,15 @@ const card = document.getElementById("card");
 const timerEl = document.getElementById("timer");
 const ROLE_NAMES = Object.keys(PROFILE_POOLS);
 
-/* Точний автоматичний відступ під верхню панель (замість фіксованих цифр) —
-   вимірюємо реальну висоту панелі й підлаштовуємо відступ під контент,
-   щоразу, коли вона змінюється (перехід між екранами, зміна розміру вікна тощо). */
-const topbarEl = document.querySelector(".topbar");
-function syncTopbarHeight(){
-  if(topbarEl) document.documentElement.style.setProperty("--topbar-h", topbarEl.offsetHeight + "px");
-}
-if(topbarEl){
-  syncTopbarHeight();
-  if(window.ResizeObserver){
-    new ResizeObserver(syncTopbarHeight).observe(topbarEl);
-  } else {
-    window.addEventListener("resize", syncTopbarHeight);
-  }
-}
-
 /* Виправлення відомого глюка мобільного Safari: коли після вводу тексту
    (з відкритою клавіатурою) відбувається перехід на новий екран, сторінка
-   може тимчасово "заплутатись" з реальним розміром видимої області, і
-   зафіксована панель перекриває контент, поки сторінку не поворухнути вручну.
+   може тимчасово "заплутатись" з реальним розміром видимої області.
    Закриваємо клавіатуру й примусово скидаємо позицію прокрутки перед
    кожним переходом між екранами. */
 function resetViewportForTransition(){
   try{ if(document.activeElement && document.activeElement.blur) document.activeElement.blur(); }catch(e){}
   window.scrollTo(0, 0);
-  setTimeout(()=>{ window.scrollTo(0, 0); syncTopbarHeight(); }, 60);
+  setTimeout(()=>{ window.scrollTo(0, 0); }, 60);
 }
 
 /* ============================================================
