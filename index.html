@@ -39,7 +39,7 @@
     padding: 0 24px;
     min-height: 100vh;
   }
-  .app{ width:100%; max-width: 640px; padding-bottom: 24px; padding-top: 78px; }
+  .app{ width:100%; max-width: 640px; padding-bottom: 24px; padding-top: var(--topbar-h, 78px); }
   .topbar{
     display:flex; align-items:baseline; justify-content:space-between;
     padding: 24px 24px 14px; border-bottom: 3px solid var(--border-color);
@@ -111,7 +111,7 @@
   .hidden{ display:none; }
   @media (max-width: 390px){
     body{ padding: 0 14px; }
-    .app{ padding-top: 58px; }
+    .app{ padding-top: var(--topbar-h, 58px); }
     .topbar{ padding: 14px 14px 10px; }
     .topbar .title{ font-size: 1.05rem; }
     .timer{ font-size: 18px; }
@@ -347,6 +347,22 @@ let state = {
 const card = document.getElementById("card");
 const timerEl = document.getElementById("timer");
 const ROLE_NAMES = Object.keys(PROFILE_POOLS);
+
+/* Точний автоматичний відступ під верхню панель (замість фіксованих цифр) —
+   вимірюємо реальну висоту панелі й підлаштовуємо відступ під контент,
+   щоразу, коли вона змінюється (перехід між екранами, зміна розміру вікна тощо). */
+const topbarEl = document.querySelector(".topbar");
+function syncTopbarHeight(){
+  if(topbarEl) document.documentElement.style.setProperty("--topbar-h", topbarEl.offsetHeight + "px");
+}
+if(topbarEl){
+  syncTopbarHeight();
+  if(window.ResizeObserver){
+    new ResizeObserver(syncTopbarHeight).observe(topbarEl);
+  } else {
+    window.addEventListener("resize", syncTopbarHeight);
+  }
+}
 
 /* ============================================================
    ЕКРАН СТАРТУ
