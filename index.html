@@ -363,6 +363,18 @@ if(topbarEl){
   }
 }
 
+/* Виправлення відомого глюка мобільного Safari: коли після вводу тексту
+   (з відкритою клавіатурою) відбувається перехід на новий екран, сторінка
+   може тимчасово "заплутатись" з реальним розміром видимої області, і
+   зафіксована панель перекриває контент, поки сторінку не поворухнути вручну.
+   Закриваємо клавіатуру й примусово скидаємо позицію прокрутки перед
+   кожним переходом між екранами. */
+function resetViewportForTransition(){
+  try{ if(document.activeElement && document.activeElement.blur) document.activeElement.blur(); }catch(e){}
+  window.scrollTo(0, 0);
+  setTimeout(()=>{ window.scrollTo(0, 0); syncTopbarHeight(); }, 60);
+}
+
 /* ============================================================
    ЕКРАН СТАРТУ
    ============================================================ */
@@ -550,6 +562,7 @@ async function onStartClick(){
     return;
   }
 
+  resetViewportForTransition();
   startQuiz();
 }
 
@@ -744,6 +757,7 @@ function renderPasswordGate(errorMsg){
   `;
   const submit = ()=>{
     const val = document.getElementById("pageCode").value;
+    resetViewportForTransition();
     if(val === ADMIN_PASSWORD){
       try{ sessionStorage.setItem("sop_unlocked", "1"); sessionStorage.setItem("sop_admin", "1"); }catch(e){}
       isAdminMode = true;
