@@ -275,10 +275,9 @@ async function fetchAttempts(){
   const out = [];
   for(let i=1;i<rows.length;i++){
     const r = rows[i];
-    if(!r || r.length < 2 || !r[1]) continue;
+    if(!r || r.length < 3 || !r[2]) continue;
     out.push({
       ts: parseTimestamp(r[0]),
-      email: (r[1]||"").trim().toLowerCase(),
       callsign: (r[2]||"").trim(),
       posada: (r[3]||"").trim(),
       general: (r[4]||"").trim(),
