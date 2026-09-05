@@ -130,7 +130,6 @@
     .result-breakdown{ gap: 14px; margin-bottom: 14px; }
   }
 </style>
-<script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 <div class="app">
@@ -148,11 +147,9 @@
    ============================================================ */
 const GENERAL_COUNT = 25;
 const PROFILE_COUNT = 20;
-const TIME_LIMIT_SECONDS = 30 * 60;
+const TIME_LIMIT_SECONDS = 45 * 60;
 const PAGE_PASSWORD = "87654321"; // <-- зміни на свій код доступу
 const ADMIN_PASSWORD = "14881488"; // <-- окремий код для адмін-панелі
-const ADMIN_EMAIL = "admin@gmail.com";
-const GOOGLE_CLIENT_ID = "343557408575-b4femidhnq7k3f19v2r0cbaoeblmm7s2.apps.googleusercontent.com";
 const ADMIN_CALLSIGN = "admin";
 const DEADLINE_FORM_ACTION_URL = "https://docs.google.com/forms/d/e/1FAIpQLSdiwQ1Dbhycgq5CLFkolbazycnxXG194__z5pzgNj9Z7JuWiA/formResponse";
 const ENTRY_DEADLINE = "entry.1751132396";
@@ -320,7 +317,7 @@ async function fetchDeadline(){
 function saveProgress(){
   try{
     localStorage.setItem(PROGRESS_KEY, JSON.stringify({
-      email: state.email, callsign: state.callsign, posada: state.posada,
+      callsign: state.callsign, posada: state.posada,
       quiz: state.quiz, answers: state.answers, current: state.current, startTs: state.startTs
     }));
   }catch(e){}
@@ -339,7 +336,7 @@ function clearProgress(){
    СТАН ЗАСТОСУНКУ
    ============================================================ */
 let state = {
-  email: "", callsign: "", posada: "", quiz: [], current: 0, answers: [],
+  callsign: "", posada: "", quiz: [], current: 0, answers: [],
   timeLeft: TIME_LIMIT_SECONDS, timerId: null, finished: false, startTs: 0
 };
 const card = document.getElementById("card");
@@ -364,54 +361,14 @@ function renderStart(errorMsg){
   timerEl.classList.add("hidden");
   const options = ROLE_NAMES.map(r => `<option value="${r}">${r}</option>`).join("");
 
-  if(isAdminMode){
-    resetViewportForTransition();
-    card.innerHTML = `
-      <div class="meta-line" style="text-align:center;color:var(--accent);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:14px">Адмін-режим</div>
-      <h1>Тест зі СОП «Управління боєм»</h1>
-      <p class="sub">${GENERAL_COUNT} загальних + ${PROFILE_COUNT} профільних питань (за посадою), випадково з великого банку. Час на тест — ${Math.round(TIME_LIMIT_SECONDS/60)} хв. Відповідь не можна змінити після переходу далі.</p>
-      <div id="deadlineInfo"></div>
-      <label for="email">Пошта</label>
-      <input type="email" id="email" value="${ADMIN_EMAIL}" readonly/>
-      <label for="callsign">Позивний</label>
-      <input type="text" id="callsign" value="${ADMIN_CALLSIGN}" readonly/>
-      <label for="posada">Посада</label>
-      <select id="posada">
-        <option value="">— Оберіть посаду —</option>
-        ${options}
-      </select>
-      ${errorMsg ? `<div class="error">${errorMsg}</div>` : ""}
-      <button class="btn-primary" id="startBtn">Почати тест</button>
-    `;
-    document.getElementById("startBtn").onclick = onStartClick;
-    loadDeadlineInfo();
-    return;
-  }
-
-  if(!state.email){
-    resetViewportForTransition();
-    card.innerHTML = `
-      <h1>Тест зі СОП «Управління боєм»</h1>
-      <p class="sub">${GENERAL_COUNT} загальних + ${PROFILE_COUNT} профільних питань (за посадою), випадково з великого банку. Час на тест — ${Math.round(TIME_LIMIT_SECONDS/60)} хв. Відповідь не можна змінити після переходу далі.</p>
-      <div id="deadlineInfo"></div>
-      <label>Вхід</label>
-      <p class="sub" style="margin-top:-6px">Для проходження тесту увійди через свій Google-акаунт.</p>
-      <div id="googleBtnContainer" style="margin-bottom:16px"></div>
-      ${errorMsg ? `<div class="error">${errorMsg}</div>` : ""}
-    `;
-    loadDeadlineInfo();
-    initGoogleSignIn();
-    return;
-  }
-
   resetViewportForTransition();
   card.innerHTML = `
+    ${isAdminMode ? `<div class="meta-line" style="text-align:center;color:var(--accent);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:14px">Адмін-режим</div>` : ``}
     <h1>Тест зі СОП «Управління боєм»</h1>
     <p class="sub">${GENERAL_COUNT} загальних + ${PROFILE_COUNT} профільних питань (за посадою), випадково з великого банку. Час на тест — ${Math.round(TIME_LIMIT_SECONDS/60)} хв. Відповідь не можна змінити після переходу далі.</p>
     <div id="deadlineInfo"></div>
-    <div class="meta-line" style="margin-bottom:16px">Увійшли як: <b>${state.email}</b> — <a href="#" id="switchAccountLink" style="color:var(--accent)">змінити акаунт</a></div>
     <label for="callsign">Позивний</label>
-    <input type="text" id="callsign" placeholder="Позивний" value="${state.callsign || ''}"/>
+    <input type="text" id="callsign" placeholder="Позивний" value="${isAdminMode ? ADMIN_CALLSIGN : (state.callsign || '')}" ${isAdminMode ? 'readonly' : ''}/>
     <label for="posada">Посада</label>
     <select id="posada">
       <option value="">— Оберіть посаду —</option>
@@ -421,50 +378,7 @@ function renderStart(errorMsg){
     <button class="btn-primary" id="startBtn">Почати тест</button>
   `;
   document.getElementById("startBtn").onclick = onStartClick;
-  document.getElementById("switchAccountLink").onclick = (e)=>{
-    e.preventDefault();
-    state.email = "";
-    renderStart();
-  };
   loadDeadlineInfo();
-}
-
-function initGoogleSignIn(){
-  if(typeof google === "undefined" || !google.accounts || !google.accounts.id){
-    setTimeout(initGoogleSignIn, 300);
-    return;
-  }
-  google.accounts.id.initialize({
-    client_id: GOOGLE_CLIENT_ID,
-    callback: handleGoogleCredential
-  });
-  const container = document.getElementById("googleBtnContainer");
-  if(container){
-    google.accounts.id.renderButton(container, { theme: "filled_black", size: "large", width: 320, text: "signin_with" });
-  }
-}
-
-function decodeJWT(token){
-  const base64Url = token.split(".")[1];
-  const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-  const jsonPayload = decodeURIComponent(
-    atob(base64).split("").map(c => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2)).join("")
-  );
-  return JSON.parse(jsonPayload);
-}
-
-function handleGoogleCredential(response){
-  try{
-    const payload = decodeJWT(response.credential);
-    if(payload && payload.email){
-      state.email = payload.email.trim().toLowerCase();
-      renderStart();
-    } else {
-      renderStart("Не вдалося отримати пошту з Google-акаунту.");
-    }
-  }catch(e){
-    renderStart("Не вдалося обробити вхід через Google. Спробуй ще раз.");
-  }
 }
 
 async function loadDeadlineInfo(){
@@ -488,7 +402,7 @@ function resultBadgeClass(result){
 }
 
 /* --- екран "вже пройдено": показує останній результат, блокування ПОСТІЙНЕ --- */
-function renderAlreadyTaken(email, callsign, last){
+function renderAlreadyTaken(callsign, last){
   timerEl.classList.add("hidden");
   resetViewportForTransition();
   card.innerHTML = `
@@ -507,14 +421,11 @@ function renderClosed(deadlineTs){
 }
 
 async function onStartClick(){
-  const email = isAdminMode ? ADMIN_EMAIL : state.email;
   const callsign = document.getElementById("callsign").value.trim();
   const posada = document.getElementById("posada").value;
-  if(!email || !email.includes("@")){ renderStart("Спочатку увійди через Google."); return; }
   if(!callsign){ renderStart("Вкажи позивний."); return; }
   if(!posada){ renderStart("Обери посаду зі списку."); return; }
 
-  state.email = email;
   state.callsign = callsign;
   state.posada = posada;
 
@@ -536,11 +447,12 @@ async function onStartClick(){
       }
     }
 
-    if(!isAdminMode && email !== ADMIN_EMAIL){
+    if(!isAdminMode){
       let last = null;
-      attempts.forEach(a=>{ if(a.email === email && (!last || a.ts > last.ts)) last = a; });
+      const cKey = callsign.trim().toLowerCase();
+      attempts.forEach(a=>{ if(a.callsign.trim().toLowerCase() === cKey && (!last || a.ts > last.ts)) last = a; });
       if(last){
-        renderAlreadyTaken(email, callsign, last);
+        renderAlreadyTaken(callsign, last);
         return;
       }
     }
@@ -681,7 +593,7 @@ async function finishQuiz(){
   }).join("\n\n");
 
   const payload = {
-    [ENTRY_EMAIL]: state.email,
+    [ENTRY_EMAIL]: "",
     [ENTRY_CALLSIGN]: state.callsign,
     [ENTRY_POSADA]: state.posada,
     [ENTRY_GENERAL]: generalCorrect + "/" + generalTotal,
@@ -714,13 +626,12 @@ async function finishQuiz(){
         <div><div class="num">${situationalCorrect}/${situationalTotal}</div><div class="lbl">Ситуаційні</div></div>
       </div>
     ` : `<p class="sub" style="text-align:center">Результат підлягає перевірці відповідальною особою.</p>`}
-    <div class="meta-line" style="text-align:center">Пошта: <b>${state.email}</b></div>
     <div class="meta-line" style="text-align:center">Позивний: <b>${state.callsign}</b></div>
     <div class="meta-line" style="text-align:center">Посада: <b>${state.posada}</b></div>
     <button class="btn-primary" id="restartBtn" style="margin-top:18px">До початку</button>
   `;
   document.getElementById("restartBtn").onclick = ()=>{
-    state = { email:"", callsign:"", posada:"", quiz:[], current:0, answers:[], timeLeft:TIME_LIMIT_SECONDS, timerId:null, finished:false, startTs:0 };
+    state = { callsign:"", posada:"", quiz:[], current:0, answers:[], timeLeft:TIME_LIMIT_SECONDS, timerId:null, finished:false, startTs:0 };
     renderStart();
   };
 }
@@ -768,7 +679,6 @@ function renderPasswordGate(errorMsg){
 function startApp(){
   const saved = loadProgress();
   if(saved && saved.quiz && saved.quiz.length && saved.startTs){
-    state.email = saved.email;
     state.callsign = saved.callsign;
     state.posada = saved.posada;
     state.quiz = saved.quiz;
